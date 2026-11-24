@@ -15,12 +15,23 @@ from PySide6.QtWidgets import (
     QSpacerItem,
     QSizePolicy,
 )
+from PySide6.QtCore import Qt, QTimer
+from Body import Body
+from About import AboutWindow
 
 class HeatTransfer(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.about_window = AboutWindow()
+        self.body_obj1 = None
+        self.body_obj2 = None
+        self.dt = 0.1         
+        self.time_elapsed = 0.0
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.timer_method)
         self.setupUI()
+
 
     def setupUI(self):
         self.setWindowTitle("Heat Transfer Simulation")
@@ -325,17 +336,76 @@ class HeatTransfer(QWidget):
         self.slider2.valueChanged.connect(self._on_slider2_changed)
         self.btn_start.toggled.connect(self._on_start_toggled)
 
+
+        self.btn_about.clicked.connect(self.about_window.show)
+
+    def update_body_color(self, body_label, temp):
+        red_val = int((temp / 200.0) * 255)
+        red_val = max(0, min(255, red_val))
+        body_label.setStyleSheet(f"""
+            QLabel {{
+                background-color: rgb({red_val}, 0, 0);
+                color: #ffffff;
+                font-size: 16px;
+                font-weight: bold;
+                border: 2px solid #555555;
+                border-radius: 8px;
+            }}
+        """)
+
     def _on_slider1_changed(self, value: int):
         self.temp1_display.setText(f"{float(value):.1f} °C")
+        self.update_body_color(self.body1, value)
 
     def _on_slider2_changed(self, value: int):
         self.temp2_display.setText(f"{float(value):.1f} °C")
+        self.update_body_color(self.body2, value)
 
     def _on_start_toggled(self, checked: bool):
         if checked:
             self.btn_start.setText("Pause")
+            self.body_obj1 = Body(
+                self.spin_mass1.value(),
+                self.spin_hcap1.value(),
+                float(self.slider1.value())
+            )
+            self.body_obj2 = Body(
+                self.spin_mass2.value(),
+                self.spin_hcap2.value(),
+                float(self.slider2.value())
+            )
+            self.timer.start(int(self.dt * 1000))
         else:
             self.btn_start.setText("Start")
+            self.timer.stop()
+
+    def timer_method(self):
+        sigma = self.spin_conductivity.value()
+        t1 = self.body_obj1.temperature
+        t2 = self.body_obj2.temperature
+
+        i1 = sigma * (t2 - t1)
+        i2 = sigma * (t1 - t2)
+
+        dq1 = i1 * self.dt
+        dq2 = i2 * self.dt
+
+        new_t1 = self.body_obj1.add_heat(dq1)
+        new_t2 = self.body_obj2.add_heat(dq2)
+        self.time_elapsed += self.dt
+
+        self.temp1_display.setText(f"{new_t1:.1f} °C")
+        self.temp2_display.setText(f"{new_t2:.1f} °C")
+        self.update_body_color(self.body1, new_t1)
+        self.update_body_color(self.body2, new_t2)
+
+        self.slider1.blockSignals(True)
+        self.slider1.setValue(int(round(new_t1)))
+        self.slider1.blockSignals(False)
+
+        self.slider2.blockSignals(True)
+        self.slider2.setValue(int(round(new_t2)))
+        self.slider2.blockSignals(False)
 
 
 if __name__ == "__main__":

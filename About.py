@@ -9,8 +9,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
 )
-
-
 class AboutWindow(QWidget):
     def __init__(self):
         super().__init__()
