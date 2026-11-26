@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer
 from Body import Body
 from About import AboutWindow
+from GraphWindow import GraphWindow
 
 class HeatTransfer(QWidget):
 
@@ -30,6 +31,10 @@ class HeatTransfer(QWidget):
         self.time_elapsed = 0.0
         self.timer = QTimer()
         self.timer.timeout.connect(self.timer_method)
+        self.graph_window = GraphWindow(self)
+        self.time_history = []
+        self.body1_temp_history = []
+        self.body2_temp_history = []
         self.setupUI()
 
 
@@ -335,6 +340,7 @@ class HeatTransfer(QWidget):
         self.slider1.valueChanged.connect(self._on_slider1_changed)
         self.slider2.valueChanged.connect(self._on_slider2_changed)
         self.btn_start.toggled.connect(self._on_start_toggled)
+        self.btn_graphs.clicked.connect(self.graph_window.show)
 
 
         self.btn_about.clicked.connect(self.about_window.show)
@@ -364,16 +370,26 @@ class HeatTransfer(QWidget):
     def _on_start_toggled(self, checked: bool):
         if checked:
             self.btn_start.setText("Pause")
+            self.time_elapsed = 0.0
+
+            t1_init = float(self.slider1.value())
+            t2_init = float(self.slider2.value())
+
             self.body_obj1 = Body(
                 self.spin_mass1.value(),
                 self.spin_hcap1.value(),
-                float(self.slider1.value())
+                t1_init
             )
             self.body_obj2 = Body(
                 self.spin_mass2.value(),
                 self.spin_hcap2.value(),
-                float(self.slider2.value())
+                t2_init
             )
+
+            self.time_history = [0.0]
+            self.body1_temp_history = [t1_init]
+            self.body2_temp_history = [t2_init]
+
             self.timer.start(int(self.dt * 1000))
         else:
             self.btn_start.setText("Start")
@@ -406,6 +422,10 @@ class HeatTransfer(QWidget):
         self.slider2.blockSignals(True)
         self.slider2.setValue(int(round(new_t2)))
         self.slider2.blockSignals(False)
+
+        self.time_history.append(self.time_elapsed)
+        self.body1_temp_history.append(new_t1)
+        self.body2_temp_history.append(new_t2)
 
 
 if __name__ == "__main__":
